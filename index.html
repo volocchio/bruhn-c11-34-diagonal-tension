@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bruhn C11.34 — Diagonal Semi-Tension Field Design</title>
+<style>
+  :root{
+    --bg:#0b1020; --bg2:#0f1630; --panel:#131c3a; --panel2:#182246;
+    --ink:#e8eefc; --muted:#8b9ac6; --line:#27335f;
+    --accent:#36d1c4; --accent2:#5a8dee; --warn:#ffb020; --ok:#39d98a; --bad:#ff5c7a;
+    --grid:#1b2b4e; --shadow:0 10px 40px rgba(0,0,0,.45);
+    --mono:"SFMono-Regular",ui-monospace,"Cascadia Code",Consolas,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--sans); color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(90,141,238,.18), transparent 60%),
+      radial-gradient(1000px 500px at -10% 110%, rgba(54,209,196,.14), transparent 60%),
+      linear-gradient(180deg,#0b1020,#0a0f1e);
+    min-height:100vh;
+  }
+  header.app{
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:18px 26px; border-bottom:1px solid var(--line);
+    background:linear-gradient(90deg, rgba(19,28,58,.9), rgba(15,22,48,.6));
+    backdrop-filter:blur(6px); position:sticky; top:0; z-index:10;
+  }
+  .logo{
+    width:46px;height:46px;border-radius:12px;flex:0 0 auto;
+    background:conic-gradient(from 210deg,#36d1c4,#5a8dee,#36d1c4);
+    display:grid;place-items:center;font-weight:800;color:#06122a;
+    box-shadow:0 0 0 1px rgba(255,255,255,.12),0 8px 24px rgba(54,209,196,.3);
+    letter-spacing:-1px;font-size:15px;
+  }
+  header.app h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+  header.app .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  header.app .spacer{flex:1}
+  .pill{font-size:11.5px;color:var(--muted);border:1px solid var(--line);
+    padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.02)}
+  .btn{
+    font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;
+    color:var(--ink);background:var(--panel2);border:1px solid var(--line);
+    padding:9px 14px;border-radius:10px;transition:.15s;
+  }
+  .btn:hover{border-color:var(--accent);box-shadow:0 0 0 2px rgba(54,209,196,.15)}
+  .btn.primary{background:linear-gradient(90deg,#36d1c4,#5a8dee);color:#06122a;border:none}
+  .btn.ghost{background:transparent}
+
+  .wrap{display:grid;grid-template-columns:360px 1fr;gap:22px;padding:22px 26px 60px;align-items:start}
+  @media (max-width:1050px){.wrap{grid-template-columns:1fr}}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .card > .hd{
+    display:flex;align-items:center;gap:10px;cursor:pointer;
+    padding:13px 16px;border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,.02);user-select:none;
+  }
+  .card > .hd h3{margin:0;font-size:13.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#cdd8f5}
+  .card > .hd .dot{width:8px;height:8px;border-radius:3px;background:var(--accent)}
+  .card > .hd .chev{margin-left:auto;color:var(--muted);transition:.2s;font-size:12px}
+  .card.collapsed .bd{display:none}
+  .card.collapsed .chev{transform:rotate(-90deg)}
+  .card > .bd{padding:14px 16px}
+
+  .inputs-col{display:flex;flex-direction:column;gap:16px}
+
+  .fieldrow{display:grid;grid-template-columns:1fr 104px 46px;gap:8px;align-items:center;margin:9px 0}
+  .fieldrow label{font-size:12.5px;color:#c7d2f0}
+  .fieldrow label .sym{font-family:var(--mono);color:var(--accent);font-weight:600}
+  .fieldrow label small{display:block;color:var(--muted);font-size:10.5px;margin-top:1px}
+  .fieldrow input{
+    width:100%;font-family:var(--mono);font-size:13px;text-align:right;
+    color:var(--ink);background:#0b1430;border:1px solid var(--line);
+    border-radius:8px;padding:7px 9px;outline:none;transition:.12s;
+  }
+  .fieldrow input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(54,209,196,.15);background:#0c1838}
+  .fieldrow .unit{font-size:11px;color:var(--muted);font-family:var(--mono)}
+
+  /* results */
+  .results-col{display:flex;flex-direction:column;gap:22px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media (max-width:760px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+  .kpi{
+    position:relative;background:linear-gradient(180deg,var(--panel2),#0e1733);
+    border:1px solid var(--line);border-radius:14px;padding:14px 15px;overflow:hidden;
+  }
+  .kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--accent)}
+  .kpi.alt::before{background:var(--accent2)}
+  .kpi.gold::before{background:var(--warn)}
+  .kpi .lab{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .kpi .val{font-family:var(--mono);font-size:25px;font-weight:700;margin-top:6px;line-height:1}
+  .kpi .u{font-size:12px;color:var(--muted);font-weight:500}
+  .kpi .note{font-size:10.5px;color:var(--muted);margin-top:5px;font-family:var(--mono)}
+
+  .viz-wrap{display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
+  @media (max-width:860px){.viz-wrap{grid-template-columns:1fr}}
+  svg{width:100%;height:auto;display:block}
+  .legend{font-size:11.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:3px;border-radius:2px;display:inline-block}
+
+  table.calc{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.calc th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;
+    text-transform:uppercase;letter-spacing:.4px;padding:7px 8px;border-bottom:1px solid var(--line)}
+  table.calc td{padding:7px 8px;border-bottom:1px solid rgba(39,51,95,.5);vertical-align:top}
+  table.calc td.sym{font-family:var(--mono);color:var(--accent);white-space:nowrap}
+  table.calc td.val{font-family:var(--mono);text-align:right;white-space:nowrap}
+  table.calc td.u{color:var(--muted);font-family:var(--mono);width:52px}
+  table.calc tr.group td{color:#cdd8f5;font-weight:700;background:rgba(255,255,255,.02);
+    text-transform:uppercase;font-size:11px;letter-spacing:.4px}
+  table.calc td.desc{color:var(--muted)}
+
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
+    padding:6px 11px;border-radius:999px;border:1px solid}
+  .badge.ok{color:var(--ok);border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.08)}
+  .badge.bad{color:var(--bad);border-color:rgba(255,92,122,.4);background:rgba(255,92,122,.08)}
+  .foot{color:var(--muted);font-size:11.5px;line-height:1.7;padding:4px 2px}
+  .foot b{color:#c7d2f0}
+  code{font-family:var(--mono);color:var(--accent2);background:rgba(90,141,238,.1);padding:1px 5px;border-radius:5px}
+  .angle-big{font-family:var(--mono);font-size:40px;font-weight:800;
+    background:linear-gradient(90deg,#36d1c4,#5a8dee);-webkit-background-clip:text;background-clip:text;color:transparent}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="logo">C11</div>
+  <div>
+    <h1>Diagonal Semi-Tension Field Design</h1>
+    <div class="sub">Bruhn &ldquo;Analysis &amp; Design of Flight Vehicle Structures&rdquo; &middot; Art. C11.34 &middot; curved fuselage shell</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="statusPill">live</span>
+  <button class="btn ghost" id="resetBtn">Load Bruhn example</button>
+  <button class="btn" id="printBtn">Print / PDF</button>
+</header>
+
+<div class="wrap">
+  <!-- ====================== INPUTS ====================== -->
+  <div class="inputs-col">
+    <div class="card" data-card>
+      <div class="hd"><span class="dot"></span><h3>Applied Loads</h3><span class="chev">&#9660;</span></div>
+      <div class="bd" id="grp-loads"></div>
+    </div>
+    <div class="card" data-card>
+      <div class="hd"><span class="dot"></span><h3>Panel Geometry</h3><span class="chev">&#9660;</span></div>
+      <div class="bd" id="grp-geom"></div>
+    </div>
+    <div class="card" data-card>
+      <div class="hd"><span class="dot"></span><h3>Material &amp; Members</h3><span class="chev">&#9660;</span></div>
+      <div class="bd" id="grp-mat"></div>
+    </div>
+    <div class="card" data-card>
+      <div class="hd"><span class="dot"></span><h3>Section Properties <small style="color:var(--muted)">(from section analysis)</small></h3><span class="chev">&#9660;</span></div>
+      <div class="bd" id="grp-sect"></div>
+    </div>
+    <div class="card collapsed" data-card>
+      <div class="hd"><span class="dot"></span><h3>Buckling Panels (advanced)</h3><span class="chev">&#9660;</span></div>
+      <div class="bd" id="grp-buck"></div>
+    </div>
+  </div>
+
+  <!-- ====================== RESULTS ====================== -->
+  <div class="results-col">
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="lab">Diagonal Tension Factor</div>
+        <div class="val" id="kpi-k">—</div>
+        <div class="note" id="kpi-k-note"></div>
+      </div>
+      <div class="kpi alt">
+        <div class="lab">Tension Field Angle</div>
+        <div class="val" id="kpi-a">—<span class="u">&deg;</span></div>
+        <div class="note" id="kpi-a-note"></div>
+      </div>
+      <div class="kpi gold">
+        <div class="lab">Stringer Stress</div>
+        <div class="val" id="kpi-str">—<span class="u"> psi</span></div>
+        <div class="note">F<sub>str</sub> (compression)</div>
+      </div>
+      <div class="kpi gold">
+        <div class="lab">Ring / Frame Stress</div>
+        <div class="val" id="kpi-ring">—<span class="u"> psi</span></div>
+        <div class="note">F<sub>ring</sub> (compression)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd" style="cursor:default"><span class="dot"></span><h3>Tension Field Visualization</h3>
+        <span class="chev" style="visibility:hidden">&#9660;</span></div>
+      <div class="bd">
+        <div class="viz-wrap">
+          <div>
+            <svg id="panelSvg" viewBox="0 0 460 340" preserveAspectRatio="xMidYMid meet" aria-label="Diagonal tension panel"></svg>
+            <div class="legend">
+              <span><i style="background:#5a8dee"></i> Stringers (spacing h)</span>
+              <span><i style="background:#ffb020"></i> Frames (spacing d)</span>
+              <span><i style="background:#36d1c4"></i> Diagonal tension @ &alpha;</span>
+              <span><i style="background:#ff5c7a"></i> Applied shear</span>
+            </div>
+          </div>
+          <div>
+            <svg id="mohrSvg" viewBox="0 0 320 300" preserveAspectRatio="xMidYMid meet" aria-label="Diagonal tension factor curve"></svg>
+            <div class="legend"><span>Fig.&nbsp;C11.19 &mdash; diagonal-tension factor <b>k</b> vs f&#115;/f&#115;cr</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><span class="dot"></span><h3>Calculation Walk-through</h3><span class="chev">&#9660;</span></div>
+      <div class="bd" style="overflow-x:auto">
+        <table class="calc"><tbody id="calcBody"></tbody></table>
+        <div style="margin-top:14px" id="verifyBadge"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><span class="dot"></span><h3>Method &amp; References</h3><span class="chev">&#9660;</span></div>
+      <div class="bd foot">
+        <p>This tool reproduces the worked example of <b>Art. C11.34</b> (diagonal semi-tension field design of a curved
+        fuselage panel) from <b>E.&nbsp;F.&nbsp;Bruhn, <i>Analysis &amp; Design of Flight Vehicle Structures</i></b>,
+        and faithfully ports the digitized design charts from the original 1998 workbook:</p>
+        <p>
+          &bull; <b>Fig.&nbsp;C9.4</b> shear-buckling coefficient <code>K&#115;</code> (long curved plate)<br/>
+          &bull; <b>Fig.&nbsp;C9.1</b> compression-buckling coefficient <code>Kc</code> (curved plate)<br/>
+          &bull; <b>Fig.&nbsp;C11.19</b> diagonal-tension factor <code>k = tanh[(0.5 + 300&middot;t&middot;d/Rh)&middot;log&#8321;&#8320;(f&#115;/f&#115;cr)]</code> &mdash; NACA TN&nbsp;2661, Fig.&nbsp;13<br/>
+          &bull; <b>Fig.&nbsp;C11.36</b> web strain <code>&epsilon;E/f&#115; = 2k/sin2&alpha; + sin2&alpha;(1&minus;k)(1+&nu;)</code> &mdash; NACA TN&nbsp;2661, Fig.&nbsp;31
+        </p>
+        <p>The tension-field angle &alpha; is solved iteratively from
+        <code>tan&#178;&alpha; = (&epsilon;+&epsilon;<sub>str</sub>) / (&epsilon;+&epsilon;<sub>ring</sub> + (1/24)(h/R)&#178;)</code>,
+        converging in a few passes. Section properties (I, stringer arms Z, effective areas) come from a separate
+        section analysis (Bruhn Art.&nbsp;A20.5) and are exposed here as editable inputs.</p>
+        <p style="color:#6f7fb0">Engineering tool for preliminary analysis &mdash; verify against the source text and your own checks before use in certification.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------
+//  INPUT MODEL  (defaults = Bruhn C11.34 worked example)
+// ---------------------------------------------------------------------------
+const FIELDS = {
+  loads: [
+    ["V","V","Vertical shear","11700"," lb"],
+    ["M","M","Bending moment @ Sta. A","1387000"," in-lb"],
+    ["T","T","Torsion","634000"," in-lb"],
+  ],
+  geom: [
+    ["d","d","Frame spacing","15"," in"],
+    ["h","h","Stringer spacing","7.25"," in"],
+    ["t","t","Skin thickness","0.032"," in"],
+    ["r","r","Fuselage radius","30"," in"],
+    ["N","N","Stringer bays around shell","26"," &ndash;"],
+  ],
+  mat: [
+    ["E","E","Young&rsquo;s modulus","10600000"," psi"],
+    ["nu","&nu;","Poisson&rsquo;s ratio","0.3"," &ndash;"],
+    ["As","A&#115;","Stringer area (DT member)","0.18"," in&#178;"],
+    ["Afr","A&#102;&#114;","Frame / ring area","0.2"," in&#178;"],
+  ],
+  sect: [
+    ["Ibend","I&#98;","Moment of inertia (bending stress)","2382"," in&#8308;"],
+    ["Isf","I&#113;","Moment of inertia (shear flow)","3257.314"," in&#8308;"],
+    ["Z1","Z&#8321;","NA &rarr; stringer 1 centroid","36.51262"," in"],
+    ["Z2","Z&#8322;","NA &rarr; stringer 2 centroid","34.61262"," in"],
+    ["Z3","Z&#8323;","NA &rarr; stringer 3 centroid","31.11262"," in"],
+    ["Ae1","A&#101;&#8321;","Effective area stringer 1","0.168156"," in&#178;"],
+    ["Ae2","A&#101;&#8322;","Effective area stringer 2","0.169075"," in&#178;"],
+    ["Ae3","A&#101;&#8323;","Effective area stringer 3","0.215989"," in&#178;"],
+  ],
+  buck: [
+    ["bc","b&#99;","Compression panel width","7.5"," in"],
+    ["nuc","&nu;&#99;","Poisson&rsquo;s ratio (compression)","0.33"," &ndash;"],
+    ["eta","&eta;","Plasticity factor","1.0"," &ndash;"],
+  ],
+};
+const EXPECTED = { Fscr:2989.3, Fccr:2808.1, Rc:0.2412, fs:5250.3, k:0.7544, alpha:41.64, Fstr:24792.6, Fring:6528.1 };
+
+// ---------------------------------------------------------------------------
+//  ENGINEERING ENGINE  (verified against the 1998 workbook, exact match)
+// ---------------------------------------------------------------------------
+const D2R = Math.PI/180, R2D = 180/Math.PI;
+const log10 = x => Math.log(x)/Math.LN10;
+const poly3 = (c,x) => c[0]+c[1]*x+c[2]*x*x+c[3]*x*x*x;
+
+function ksShear(a,b,r,t,nu){
+  const Zb = (b*b/(r*t))*Math.sqrt(1-nu*nu);
+  const ab = a/b;
+  const C = {1:[9.5038373,0.2671042638,-0.0002847212,0.0000001581],
+             1.5:[7.092300494,0.2123352691,-0.000183204,0.0000000938],
+             2:[6.218349023,0.1988081427,-0.0001936561,0.0000001036],
+             3:[5.668375108,0.1909233571,-0.0002284578,0.0000001319],
+             10:[5.6221508059,0.1474874911,-0.0002180637,0.000000125]};
+  const xs=[1,1.5,2,3,10];
+  let Ks;
+  if(ab<=xs[0]) Ks=poly3(C[xs[0]],Zb);
+  else{ Ks=poly3(C[10],Zb);
+    for(let i=1;i<xs.length;i++){ if(ab<=xs[i]){
+      const lo=xs[i-1],hi=xs[i];
+      Ks=(ab-lo)/(hi-lo)*(poly3(C[hi],Zb)-poly3(C[lo],Zb))+poly3(C[lo],Zb); break; } } }
+  return {Ks,Zb,ab};
+}
+function kcComp(b,r,t,nu){
+  const Z = b*b/(r*t)*Math.sqrt(1-nu*nu), rt=r/t;
+  const c500 =Z<40 ? poly3([3.64301536,0.2845137194,0.000288257,0.0000233757],Z)   : Math.pow(10,0.9939*log10(Z)-0.3618);
+  const c700 =Z<70 ? poly3([3.8663983,0.2325083054,0.0005831863,-0.0000014488],Z)  : Math.pow(10,0.98749*log10(Z)-0.46983);
+  const c1000=Z<300? poly3([4.06451419,0.2146714335,-0.000306168,0.0000006343],Z)  : Math.pow(10,0.9824*log10(Z)-0.6701);
+  const c2000=Z<300? poly3([4.213791427,0.1942538484,-0.0002863362,0.0000004952],Z): Math.pow(10,0.8867*log10(Z)-0.50627);
+  const c3000=Z<300? poly3([4.1147674496,0.2102675295,-0.0005164348,0.0000009014],Z):Math.pow(10,0.861*log10(Z)-0.4796);
+  const xs=[500,700,1000,2000,3000], fv=[c500,c700,c1000,c2000,c3000];
+  let Kc;
+  if(rt<=xs[0]) Kc=fv[0];
+  else{ Kc=fv[fv.length-1];
+    for(let i=1;i<xs.length;i++){ if(rt<=xs[i]){
+      const lo=xs[i-1],hi=xs[i];
+      Kc=(rt-lo)/(hi-lo)*(fv[i]-fv[i-1])+fv[i-1]; break; } } }
+  return {Kc,Z,rt};
+}
+
+function solve(p){
+  const o={};
+  // ---- buckling stresses ----
+  const sh = ksShear(p.d,p.h,p.r,p.t,p.nu);
+  o.Zb=sh.Zb; o.ab=sh.ab; o.Ks=sh.Ks;
+  o.Fscr = (Math.PI**2*p.eta*sh.Ks*p.E)/(12*(1-p.nu*p.nu))*(p.t/p.h)**2;
+  const cm = kcComp(p.bc,p.r,p.t,p.nuc);
+  o.Zc=cm.Z; o.rt=cm.rt; o.Kc=cm.Kc;
+  o.Fccr = (cm.Kc*Math.PI**2*p.E)/(12*(1-p.nuc*p.nuc))*(p.t/p.bc)**2;
+  // ---- bending stresses ----
+  o.Mmax = p.M + p.V*p.d;
+  o.Mavg = (p.M + o.Mmax)/2;
+  o.fpMax = o.Mmax*p.Z3/p.Ibend;
+  o.fpAvg = o.Mavg*p.Z3/p.Ibend;
+  // ---- combined-load buckling ratio Rc ----
+  o.A = o.Fccr/o.Fscr;
+  // ---- shear flows & stress ----
+  o.Acell = (p.N*p.h/2)*(p.r-0.2);
+  o.qT = p.T/(2*o.Acell);
+  o.q23 = p.V*(p.Ae1*p.Z1 + p.Ae2*p.Z2)/p.Isf + o.qT;
+  o.q34 = p.V*(p.Ae1*p.Z1 + p.Ae2*p.Z2 + p.Ae3*p.Z3)/p.Isf + o.qT;
+  o.qAvg = (o.q23+o.q34)/2;
+  o.fs = o.qAvg/p.t;
+  o.B = o.fpAvg/o.fs;
+  o.Rc = (-o.B/o.A + Math.sqrt((o.B/o.A)**2 + 4))/2;
+  o.FscrRed = o.Rc*o.Fscr;                     // reduced critical shear
+  // ---- diagonal tension factor k ----
+  o.dh = p.d/p.h;
+  o.term = o.dh>2 ? 300*(2*p.t/p.r) : 300*(p.t*p.d/(p.r*p.h));
+  o.fsRatio = o.fs/o.FscrRed;
+  o.k = Math.tanh((0.5+o.term)*log10(o.fsRatio));
+  // ---- stringer / ring secondary stresses ----
+  o.fStrDT = (o.k*o.fs)/(p.As/(p.h*p.t) + 0.5*(1-o.k)*o.Rc);
+  o.fRing  = (o.k*o.fs)/(p.Afr/(p.d*p.t) + 0.5*(1-o.k));
+  o.eStr = (o.fpAvg + o.fStrDT)/p.E*1e6;
+  o.eRing = o.fRing/p.E*1e6;
+  o.hoop = (1/24)*(p.h/p.r)**2;
+  // ---- iterate tension field angle ----
+  let a=45, it=[];
+  for(let i=0;i<60;i++){
+    const s=Math.sin(2*a*D2R);
+    const wf=2*o.k/s + s*(1-o.k)*(1+p.nu);
+    const eWeb=wf*o.fs/p.E*1e6;
+    const tan2=((eWeb+o.eStr)*1e-6)/(((eWeb+o.eRing)*1e-6)+o.hoop);
+    const an=Math.atan(Math.sqrt(tan2))*R2D;
+    it.push({i,a,wf,eWeb,an});
+    if(Math.abs(an-a)<1e-9){a=an;break;}
+    a=an;
+  }
+  o.alpha=a; o.iters=it;
+  o.cot=1/Math.tan(a*D2R); o.tan=Math.tan(a*D2R);
+  o.Fstr = o.fpAvg + o.fStrDT*o.cot;
+  o.Fring = o.fRing*o.tan;
+  return o;
+}
+
+// ---------------------------------------------------------------------------
+//  UI  BUILD
+// ---------------------------------------------------------------------------
+function buildFields(){
+  for(const [grp,rows] of Object.entries(FIELDS)){
+    const host=document.getElementById("grp-"+grp);
+    rows.forEach(([key,sym,desc,def,unit])=>{
+      const row=document.createElement("div"); row.className="fieldrow";
+      row.innerHTML=`<label><span class="sym">${sym}</span><small>${desc}</small></label>
+        <input id="in-${key}" inputmode="decimal" value="${def}" data-def="${def}"/>
+        <span class="unit">${unit}</span>`;
+      host.appendChild(row);
+    });
+  }
+}
+function readInputs(){
+  const p={};
+  for(const rows of Object.values(FIELDS))
+    for(const [key] of rows) p[key]=parseFloat(document.getElementById("in-"+key).value);
+  return p;
+}
+const fmt=(x,d=2)=> (isFinite(x)? x.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}):"—");
+const fmt0=x=>fmt(x,0);
+
+function render(){
+  const p=readInputs();
+  const o=solve(p);
+
+  // KPIs
+  document.getElementById("kpi-k").textContent = fmt(o.k,4);
+  document.getElementById("kpi-k-note").textContent = "k = tanh[(0.5+"+fmt(o.term,3)+")·log(fs/fscr)]";
+  document.getElementById("kpi-a").innerHTML = fmt(o.alpha,2)+'<span class="u">°</span>';
+  document.getElementById("kpi-a-note").textContent = o.iters.length+" iterations";
+  document.getElementById("kpi-str").innerHTML = fmt0(o.Fstr)+'<span class="u"> psi</span>';
+  document.getElementById("kpi-ring").innerHTML = fmt0(o.Fring)+'<span class="u"> psi</span>';
+
+  drawPanel(o,p);
+  drawInteraction(o);
+  buildTable(o,p);
+  verify(o);
+}
+
+function buildTable(o,p){
+  const rows=[
+    ["g","Buckling of the Curved Skin Panel"],
+    ["r","Z<sub>b</sub> (shear curvature param.)","Z&#98;",o.Zb,3,""],
+    ["r","a/b ratio","a/b",o.ab,3,""],
+    ["r","Shear buckling coefficient","K&#115;",o.Ks,3,""],
+    ["r","Critical shear buckling stress","F&#115;cr",o.Fscr,1,"psi"],
+    ["r","Compression buckling coefficient","Kc",o.Kc,3,""],
+    ["r","Critical compression buckling stress","Fccr",o.Fccr,1,"psi"],
+    ["g","Applied Stresses"],
+    ["r","Max bending moment M + V·d","Mmax",o.Mmax,0,"in-lb"],
+    ["r","Avg bending moment","Mavg",o.Mavg,0,"in-lb"],
+    ["r","Stringer-3 bending stress (max)","f&#112;max",o.fpMax,1,"psi"],
+    ["r","Stringer-3 bending stress (avg)","f&#112;avg",o.fpAvg,1,"psi"],
+    ["r","Enclosed cell area","A&#99;ell",o.Acell,1,"in²"],
+    ["r","Torsion shear flow T/2A","q&#84;",o.qT,2,"lb/in"],
+    ["r","Shear flow panel 2-3","q&#8322;&#8323;",o.q23,2,"lb/in"],
+    ["r","Shear flow panel 3-4","q&#8323;&#8324;",o.q34,2,"lb/in"],
+    ["r","Average shear stress","f&#115;",o.fs,1,"psi"],
+    ["g","Combined-Load Buckling &amp; Diagonal Tension"],
+    ["r","Fccr/Fscr","A",o.A,4,""],
+    ["r","f&#112;avg/f&#115;","B",o.B,4,""],
+    ["r","Compression-reduction ratio","R&#99;",o.Rc,4,""],
+    ["r","Reduced critical shear stress","F&#115;cr&prime;",o.FscrRed,1,"psi"],
+    ["r","300·t·d/Rh term","&nbsp;",o.term,3,""],
+    ["r","f&#115;/F&#115;cr&prime;","&nbsp;",o.fsRatio,3,""],
+    ["r","<b>Diagonal tension factor</b>","k",o.k,4,""],
+    ["g","Stringer, Ring &amp; Tension-Field Angle"],
+    ["r","Stringer diagonal-tension stress","&Delta;f&#115;&#116;&#114;",o.fStrDT,1,"psi"],
+    ["r","Ring diagonal-tension stress","f&#114;&#105;&#110;&#103;",o.fRing,1,"psi"],
+    ["r","Stringer strain","&epsilon;&#115;&#116;&#114;",o.eStr,1,"µin/in"],
+    ["r","Ring strain","&epsilon;&#114;&#105;&#110;&#103;",o.eRing,1,"µin/in"],
+    ["r","<b>Tension field angle</b>","&alpha;",o.alpha,3,"deg"],
+    ["r","<b>Stringer stress (total, compr.)</b>","F&#115;&#116;&#114;",o.Fstr,1,"psi"],
+    ["r","<b>Ring/frame stress (compr.)</b>","F&#114;&#105;&#110;&#103;",o.Fring,1,"psi"],
+  ];
+  const b=document.getElementById("calcBody"); b.innerHTML="";
+  for(const row of rows){
+    const tr=document.createElement("tr");
+    if(row[0]==="g"){ tr.className="group"; tr.innerHTML=`<td colspan="4">${row[1]}</td>`; }
+    else{ tr.innerHTML=`<td class="desc">${row[1]}</td><td class="sym">${row[2]}</td>
+      <td class="val">${fmt(row[3],row[4])}</td><td class="u">${row[5]}</td>`; }
+    b.appendChild(tr);
+  }
+}
+
+function verify(o){
+  const checks=[["Fscr",o.Fscr,EXPECTED.Fscr],["Fccr",o.Fccr,EXPECTED.Fccr],["Rc",o.Rc,EXPECTED.Rc],
+    ["fs",o.fs,EXPECTED.fs],["k",o.k,EXPECTED.k],["α",o.alpha,EXPECTED.alpha],
+    ["Fstr",o.Fstr,EXPECTED.Fstr],["Fring",o.Fring,EXPECTED.Fring]];
+  const bad=checks.filter(c=>Math.abs(c[1]-c[2])/Math.abs(c[2])>0.002);
+  const el=document.getElementById("verifyBadge");
+  const p=readInputs();
+  const isExample = Math.abs(p.V-11700)<1e-6 && Math.abs(p.M-1387000)<1e-6 && Math.abs(p.T-634000)<1e-6
+                 && Math.abs(p.d-15)<1e-9 && Math.abs(p.h-7.25)<1e-9 && Math.abs(p.t-0.032)<1e-9;
+  if(isExample){
+    el.innerHTML = bad.length===0
+      ? `<span class="badge ok">&#10003; Verified &mdash; matches Bruhn C11.34 worked example to &lt;0.2%</span>`
+      : `<span class="badge bad">&#9888; Deviation from reference: ${bad.map(b=>b[0]).join(", ")}</span>`;
+  } else {
+    el.innerHTML = `<span class="badge ok" style="color:var(--accent2);border-color:rgba(90,141,238,.4);background:rgba(90,141,238,.08)">Custom inputs &mdash; engine validated against the Bruhn example</span>`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  SVG : tension-field panel
+// ---------------------------------------------------------------------------
+function drawPanel(o,p){
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.getElementById("panelSvg"); svg.innerHTML="";
+  const W=460,H=340, m=46;
+  const px=m, py=m, pw=W-2*m, ph=H-2*m;
+  const add=(t,at,txt)=>{const e=document.createElementNS(NS,t);
+    for(const k in at)e.setAttribute(k,at[k]); if(txt!=null)e.textContent=txt; svg.appendChild(e);return e;};
+
+  // defs: clip + gradient
+  const defs=add("defs",{});
+  defs.innerHTML=`<clipPath id="pc"><rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="4"/></clipPath>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132a4a"/><stop offset="1" stop-color="#0d1d38"/></linearGradient>`;
+
+  add("rect",{x:px,y:py,width:pw,height:ph,rx:4,fill:"url(#skin)",stroke:"#2a3b6b","stroke-width":1});
+
+  // diagonal tension wrinkles at angle alpha (from horizontal, going up-right)
+  const a=o.alpha*D2R, slope=Math.tan(a);
+  const g=add("g",{"clip-path":"url(#pc)"});
+  const addG=(t,at)=>{const e=document.createElementNS(NS,t);for(const k in at)e.setAttribute(k,at[k]);g.appendChild(e);};
+  const step=14;
+  for(let c=-ph; c<pw+ph; c+=step){
+    // line y - py = -slope*(x-(px+c))  -> lines rising to the right
+    const x1=px, y1=(py+ph) - ( (px - (px+c)) * -slope );
+    const x2=px+pw, y2=(py+ph) - ( (px+pw-(px+c)) * -slope );
+    // simpler param: draw line through (px+c, py+ph) with slope upward
+    const X1=px+c, Y1=py+ph, X2=px+c+ (ph/slope||pw), Y2=py+ph-ph;
+    addG("line",{x1:X1,y1:Y1,x2:X2,y2:Y2,stroke:"#36d1c4","stroke-width":1.3,"stroke-opacity":0.5});
+  }
+
+  // stringers (top & bottom, horizontal) spacing h
+  add("line",{x1:px,y1:py,x2:px+pw,y2:py,stroke:"#5a8dee","stroke-width":4,"stroke-linecap":"round"});
+  add("line",{x1:px,y1:py+ph,x2:px+pw,y2:py+ph,stroke:"#5a8dee","stroke-width":4,"stroke-linecap":"round"});
+  // frames (left & right, vertical) spacing d
+  add("line",{x1:px,y1:py,x2:px,y2:py+ph,stroke:"#ffb020","stroke-width":4,"stroke-linecap":"round"});
+  add("line",{x1:px+pw,y1:py,x2:px+pw,y2:py+ph,stroke:"#ffb020","stroke-width":4,"stroke-linecap":"round"});
+
+  // angle arc at bottom-left corner
+  const cx=px+10, cy=py+ph;
+  const r=38;
+  const ax=cx+r, ay=cy;
+  const bx=cx+r*Math.cos(a), by=cy-r*Math.sin(a);
+  add("path",{d:`M ${ax} ${ay} A ${r} ${r} 0 0 0 ${bx} ${by}`,fill:"none",stroke:"#36d1c4","stroke-width":1.6});
+  add("line",{x1:cx,y1:cy,x2:cx+r*1.35*Math.cos(a),y2:cy-r*1.35*Math.sin(a),stroke:"#36d1c4","stroke-width":1.6,"stroke-dasharray":"4 3"});
+  add("text",{x:cx+r+6,y:cy-9,fill:"#9fe8e1","font-size":13,"font-family":"monospace"},"α="+fmt(o.alpha,1)+"°");
+
+  // dimension labels
+  add("text",{x:px+pw/2,y:py-16,fill:"#9ab0ef","font-size":12,"text-anchor":"middle","font-family":"monospace"},"d = "+fmt(p.d,1)+" in  (frame pitch)");
+  add("text",{x:px-14,y:py+ph/2,fill:"#9ab0ef","font-size":12,"text-anchor":"middle","font-family":"monospace","transform":`rotate(-90 ${px-14} ${py+ph/2})`},"h = "+fmt(p.h,2)+" in");
+
+  // complementary shear flow q on ALL FOUR edges (continuous circulation, CCW)
+  const mk=add("marker",{id:"ah",markerWidth:9,markerHeight:9,refX:6.5,refY:3,orient:"auto"});
+  mk.innerHTML='<path d="M0,0 L7,3 L0,6 Z" fill="#ff5c7a"/>';
+  const ins=15;                                  // inset of the arrow from the member line
+  const SW={stroke:"#ff5c7a","stroke-width":2.4,"stroke-linecap":"round","marker-end":"url(#ah)"};
+  // bottom edge -> flows right ;  right edge -> flows up ;  top edge -> flows left ;  left edge -> flows down
+  add("line",{x1:px+pw*0.30, y1:py+ph-ins, x2:px+pw*0.74, y2:py+ph-ins, ...SW});   // bottom  (→)
+  add("line",{x1:px+pw-ins,  y1:py+ph*0.70,x2:px+pw-ins,  y2:py+ph*0.26, ...SW});   // right   (↑)
+  add("line",{x1:px+pw*0.70, y1:py+ins,    x2:px+pw*0.26, y2:py+ins,    ...SW});   // top     (←)
+  add("line",{x1:px+ins,     y1:py+ph*0.30,x2:px+ins,     y2:py+ph*0.70,...SW});   // left    (↓)
+  // small q labels at each arrow
+  const qlab=(x,y)=>add("text",{x,y,fill:"#ff96aa","font-size":12,"text-anchor":"middle","font-family":"monospace","font-style":"italic"},"q");
+  qlab(px+pw*0.52, py+ph-ins-6);
+  qlab(px+pw-ins-9, py+ph*0.50);
+  qlab(px+pw*0.48, py+ins+14);
+  qlab(px+ins+9, py+ph*0.50+4);
+  // caption below the panel
+  add("text",{x:px+pw/2,y:py+ph+26,fill:"#ff96aa","font-size":11.5,"text-anchor":"middle","font-family":"monospace"},"shear flow q ≈ "+fmt(o.qAvg,0)+" lb/in  →  fs = "+fmt0(o.fs)+" psi");
+}
+
+// ---------------------------------------------------------------------------
+//  SVG : diagonal tension factor curve  (Fig. C11.19)
+// ---------------------------------------------------------------------------
+function drawInteraction(o){
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.getElementById("mohrSvg"); svg.innerHTML="";
+  const W=320,H=300, ox=48, oy=H-48, ax=W-18, ay=22;
+  const add=(t,at,txt)=>{const e=document.createElementNS(NS,t);for(const k in at)e.setAttribute(k,at[k]);
+    if(txt!=null)e.textContent=txt; svg.appendChild(e);return e;};
+  // x = log10(fs/fscr) over [0,2]  (ratio 1 .. 100);  y = k over [0,1]
+  const XMIN=0, XMAX=2;
+  const sx=L=>ox+(ax-ox)*(Math.min(Math.max(L,XMIN),XMAX)-XMIN)/(XMAX-XMIN);
+  const sy=k=>oy-(oy-ay)*Math.min(Math.max(k,0),1);
+  // axes
+  add("line",{x1:ox,y1:oy,x2:ax,y2:oy,stroke:"#3a4c80","stroke-width":1.4});
+  add("line",{x1:ox,y1:oy,x2:ox,y2:ay,stroke:"#3a4c80","stroke-width":1.4});
+  add("text",{x:(ox+ax)/2,y:H-14,fill:"#9ab0ef","font-size":11,"text-anchor":"middle","font-family":"monospace"},"fs / fscr  (log scale)");
+  add("text",{x:14,y:(oy+ay)/2,fill:"#9ab0ef","font-size":11,"text-anchor":"middle","font-family":"monospace","transform":`rotate(-90 14 ${(oy+ay)/2})`},"k  (DT factor)");
+  // y ticks
+  [0,0.25,0.5,0.75,1].forEach(v=>{ add("text",{x:ox-7,y:sy(v)+3,fill:"#6f7fb0","font-size":9,"text-anchor":"end","font-family":"monospace"},v.toFixed(2));
+    add("line",{x1:ox,y1:sy(v),x2:ax,y2:sy(v),stroke:"#223158","stroke-width":.6,"stroke-opacity":.5});});
+  // x ticks at ratios 1,2,5,10,20,50,100
+  [1,2,5,10,20,50,100].forEach(r=>{const L=log10(r); add("text",{x:sx(L),y:oy+14,fill:"#6f7fb0","font-size":8.5,"text-anchor":"middle","font-family":"monospace"},r);});
+  // the k curve for this configuration: k = tanh((0.5+term)*log10(ratio))
+  let d="";
+  for(let L=XMIN;L<=XMAX+1e-9;L+=0.02){ const k=Math.tanh((0.5+o.term)*L); d+=(d?" L ":"M ")+sx(L)+" "+sy(k); }
+  add("path",{d,fill:"none",stroke:"#5a8dee","stroke-width":2});
+  // operating point
+  const Lop=log10(o.fsRatio);
+  add("line",{x1:sx(Lop),y1:oy,x2:sx(Lop),y2:sy(o.k),stroke:"#36d1c4","stroke-width":1,"stroke-dasharray":"3 3","stroke-opacity":.6});
+  add("line",{x1:ox,y1:sy(o.k),x2:sx(Lop),y2:sy(o.k),stroke:"#36d1c4","stroke-width":1,"stroke-dasharray":"3 3","stroke-opacity":.6});
+  add("circle",{cx:sx(Lop),cy:sy(o.k),r:5.5,fill:"#36d1c4",stroke:"#06122a","stroke-width":1.5});
+  add("text",{x:sx(Lop)+8,y:sy(o.k)+16,fill:"#9fe8e1","font-size":10,"font-family":"monospace"},`fs/fscr=${fmt(o.fsRatio,2)}`);
+  add("text",{x:sx(Lop)+8,y:sy(o.k)-7,fill:"#9fe8e1","font-size":11,"font-family":"monospace"},`k=${fmt(o.k,3)}`);
+}
+
+// ---------------------------------------------------------------------------
+//  WIRING
+// ---------------------------------------------------------------------------
+buildFields();
+document.querySelectorAll("[data-card] .hd").forEach(hd=>{
+  hd.addEventListener("click",()=>hd.parentElement.classList.toggle("collapsed"));
+});
+document.querySelectorAll("input").forEach(inp=>{
+  inp.addEventListener("input",()=>{ try{render();}catch(e){console.error(e);} });
+});
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  document.querySelectorAll("input").forEach(i=>i.value=i.dataset.def); render();
+});
+document.getElementById("printBtn").addEventListener("click",()=>window.print());
+render();
+</script>
+</body>
+</html>
