@@ -542,15 +542,17 @@ function drawPanel(o,p){
   add("text",{x:px+pw/2,y:py-16,fill:"#9ab0ef","font-size":12,"text-anchor":"middle","font-family":"monospace"},"d = "+fmt(p.d,1)+" in  (frame pitch)");
   add("text",{x:px-14,y:py+ph/2,fill:"#9ab0ef","font-size":12,"text-anchor":"middle","font-family":"monospace","transform":`rotate(-90 ${px-14} ${py+ph/2})`},"h = "+fmt(p.h,2)+" in");
 
-  // complementary shear flow q on ALL FOUR edges (continuous circulation, CCW)
+  // complementary shear flow q on ALL FOUR edges (NOT circulating):
+  // arrowheads converge head-to-head at two opposite corners (top-right & bottom-left),
+  // tail-to-tail at the other two -> consistent with tension along the up-right diagonal.
   const mk=add("marker",{id:"ah",markerWidth:9,markerHeight:9,refX:6.5,refY:3,orient:"auto"});
   mk.innerHTML='<path d="M0,0 L7,3 L0,6 Z" fill="#ff5c7a"/>';
   const ins=15;                                  // inset of the arrow from the member line
   const SW={stroke:"#ff5c7a","stroke-width":2.4,"stroke-linecap":"round","marker-end":"url(#ah)"};
-  // bottom edge -> flows right ;  right edge -> flows up ;  top edge -> flows left ;  left edge -> flows down
-  add("line",{x1:px+pw*0.30, y1:py+ph-ins, x2:px+pw*0.74, y2:py+ph-ins, ...SW});   // bottom  (→)
+  // bottom edge -> left ;  right edge -> up ;  top edge -> right ;  left edge -> down
+  add("line",{x1:px+pw*0.74, y1:py+ph-ins, x2:px+pw*0.30, y2:py+ph-ins, ...SW});   // bottom  (←)
   add("line",{x1:px+pw-ins,  y1:py+ph*0.70,x2:px+pw-ins,  y2:py+ph*0.26, ...SW});   // right   (↑)
-  add("line",{x1:px+pw*0.70, y1:py+ins,    x2:px+pw*0.26, y2:py+ins,    ...SW});   // top     (←)
+  add("line",{x1:px+pw*0.26, y1:py+ins,    x2:px+pw*0.70, y2:py+ins,    ...SW});   // top     (→)
   add("line",{x1:px+ins,     y1:py+ph*0.30,x2:px+ins,     y2:py+ph*0.70,...SW});   // left    (↓)
   // small q labels at each arrow
   const qlab=(x,y)=>add("text",{x,y,fill:"#ff96aa","font-size":12,"text-anchor":"middle","font-family":"monospace","font-style":"italic"},"q");
